@@ -93,10 +93,10 @@ export default function EcoLogicApp() {
   return (
     <main className="eco-page">
       <header className="eco-header">
-        <a href="/" className="eco-brand" aria-label="Voltar para LogicKids">
+        <div className="eco-brand" aria-label="LogicKids Missão Clima">
           <span className="eco-brand-mark">🌿</span>
           <span>Logic<span>Kids</span></span>
-        </a>
+        </div>
         <div className="eco-header-badge">ODS 13 · Ação Climática</div>
       </header>
 
