@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import {
   CLIMATE_CATEGORIES,
   ClimateCategory,
@@ -6,7 +7,7 @@ import {
   getFallbackChallenge,
 } from '@/data/fallbackChallenges'
 
-const MODEL = 'Qwen/Qwen2.5-72B-Instruct'
+const DEFAULT_MODEL = 'Qwen/Qwen2.5-72B-Instruct'
 const HF_URL = 'https://router.huggingface.co/v1/chat/completions'
 
 function isClimateCategory(value: unknown): value is ClimateCategory {
@@ -42,6 +43,7 @@ function isValidChallenge(value: unknown, category: ClimateCategory): value is C
 async function generateWithHuggingFace(category: ClimateCategory): Promise<ClimateChallenge> {
   const token = process.env.HF_TOKEN
   if (!token) throw new Error('HF_TOKEN não configurado')
+  const model = process.env.HF_MODEL?.trim() || DEFAULT_MODEL
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 8_000)
@@ -54,7 +56,7 @@ async function generateWithHuggingFace(category: ClimateCategory): Promise<Clima
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         temperature: 0.8,
         max_tokens: 500,
         messages: [
@@ -87,6 +89,28 @@ O índice correto deve ser de 0 a 3. O ecoFact deve ser uma curiosidade climáti
   }
 }
 
+async function saveChallenge(challenge: ClimateChallenge, source: 'huggingface' | 'fallback') {
+  try {
+    await prisma.generatedClimateChallenge.create({
+      data: {
+        category: challenge.category,
+        title: challenge.title,
+        question: challenge.question,
+        logicHint: challenge.logicHint,
+        options: challenge.options,
+        correctIndex: challenge.correctIndex,
+        ecoFact: challenge.ecoFact,
+        source,
+        model: source === 'huggingface' ? process.env.HF_MODEL?.trim() || DEFAULT_MODEL : null,
+      },
+    })
+    return true
+  } catch (error) {
+    console.error('Não foi possível salvar o desafio no Supabase.', error)
+    return false
+  }
+}
+
 export async function POST(request: Request) {
   let body: unknown
   try {
@@ -103,11 +127,23 @@ export async function POST(request: Request) {
     )
   }
 
+  let challenge: ClimateChallenge
+  let source: 'huggingface' | 'fallback'
+
   try {
-    const challenge = await generateWithHuggingFace(category)
-    return NextResponse.json({ ...challenge, source: 'huggingface' })
+    challenge = await generateWithHuggingFace(category)
+    source = 'huggingface'
   } catch (error) {
     console.error('Falha ao gerar desafio com Hugging Face; usando fallback local.', error)
-    return NextResponse.json({ ...getFallbackChallenge(category), source: 'fallback' })
+    challenge = getFallbackChallenge(category)
+    source = 'fallback'
   }
+
+  const saved = await saveChallenge(challenge, source)
+  return NextResponse.json({
+    ...challenge,
+    source,
+    saved,
+    storage: saved ? 'supabase' : 'unavailable',
+  })
 }

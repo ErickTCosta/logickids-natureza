@@ -71,3 +71,20 @@ model Session {
   createdAt   DateTime @default(now())
   student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
+
+model GeneratedClimateChallenge {
+  id           String   @id @default(cuid())
+  category     String
+  title        String
+  question     String
+  logicHint    String
+  options      String[]
+  correctIndex Int
+  ecoFact      String
+  source       String
+  model        String?
+  createdAt    DateTime @default(now())
+
+  @@index([category, createdAt])
+  @@index([source, createdAt])
+}

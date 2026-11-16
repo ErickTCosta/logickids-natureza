@@ -18,6 +18,39 @@ HF_TOKEN="hf_seu_token"
 O token é usado somente no Route Handler do servidor (`/api/gerar-desafio`) e nunca é
 exposto ao navegador. A funcionalidade continua disponível sem token usando o fallback.
 
+## Configurar Hugging Face e Supabase
+
+### Hugging Face
+
+1. Crie um token em [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+   com permissão de inferência.
+2. Configure `HF_TOKEN` no `.env.local`.
+3. Opcionalmente, configure `HF_MODEL`. O padrão é
+   `Qwen/Qwen2.5-72B-Instruct`; também é possível usar
+   `meta-llama/Llama-3.1-8B-Instruct` se sua conta tiver acesso ao modelo.
+
+O Route Handler envia um prompt que exige JSON estrito, remove cercas Markdown,
+valida os quatro campos de resposta e usa o fallback local em caso de erro, limite
+ou timeout.
+
+### Supabase
+
+1. Crie um projeto no [Supabase](https://supabase.com/dashboard).
+2. Em **Project Settings → Database → Connection string**, copie as conexões
+   para `DATABASE_URL` (pooler Transaction, porta 6543) e `DIRECT_URL`
+   (conexão direta ou pooler Session).
+3. Execute:
+
+```bash
+npm run db:push
+```
+
+Os desafios gerados são salvos na tabela `GeneratedClimateChallenge`, incluindo a
+pergunta, quatro opções, índice correto, dica, categoria, modelo usado e `ecoFact`.
+Desafios de fallback também são registrados com `source: "fallback"` quando o banco
+está disponível. Se o Supabase estiver temporariamente indisponível, a experiência
+continua funcionando e o erro é registrado no servidor.
+
 ## Stack
 
 | Camada    | Tecnologia                 | Custo        |
